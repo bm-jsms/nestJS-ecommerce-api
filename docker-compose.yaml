@@ -1,0 +1,16 @@
+services:
+  myDB:
+    image: postgres:17.5
+    container_name: ecommerce
+    restart: always
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: ${DB_NAME}
+    volumes:
+      - ./postgres_dt:/var/lib/postgresql/data
+
+    # volumes:
+    #   postgres_data:
