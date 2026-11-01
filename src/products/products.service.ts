@@ -8,12 +8,11 @@ import {
 import { CreateProductDto } from './dto/create-product.dto';
 import { UpdateProductDto } from './dto/update-product.dto';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, Repository } from 'typeorm';
 import { PaginationDto } from '../common/dtos/pagination.dto';
 import { isUUID } from 'class-validator';
 
 import { ProductImage, Product } from './entities';
-import { map } from 'rxjs';
 
 @Injectable()
 export class ProductsService {
@@ -24,6 +23,8 @@ export class ProductsService {
     private readonly productRepository: Repository<Product>,
     @InjectRepository(ProductImage)
     private readonly productImageRepository: Repository<ProductImage>,
+
+    private readonly dataSource: DataSource,
   ) {}
 
   async create(createProductDto: CreateProductDto) {
@@ -95,19 +96,42 @@ export class ProductsService {
   }
 
   async update(id: string, updateProductDto: UpdateProductDto) {
+    const { images, ...toUpdate } = updateProductDto;
+
     const product = await this.productRepository.preload({
-      id: id,
-      ...updateProductDto,
-      images: [],
+      id,
+      ...toUpdate,
     });
 
     if (!product)
       throw new NotFoundException(`Product with id ${id} not found`);
 
-    try {
-      await this.productRepository.save(product);
+    // Query Runner
+    const queryRunner = this.dataSource.createQueryRunner();
 
-      return product;
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      if (images) {
+        await queryRunner.manager.delete(ProductImage, {
+          product: { id },
+        });
+
+        product.images = images.map((i) =>
+          this.productImageRepository.create({
+            url: i,
+          }),
+        );
+      }
+
+      await queryRunner.manager.save(product);
+      // await this.productRepository.save(product);
+
+      await queryRunner.commitTransaction();
+      await queryRunner.release();
+
+      return this.findOnePlain(id);
     } catch (error) {
       this.handleDbExceptions(error);
     }
