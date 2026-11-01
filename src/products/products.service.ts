@@ -139,10 +139,7 @@ export class ProductsService {
 
   async remove(id: string) {
     const product = await this.findOne(id);
-
     await this.productRepository.remove(product);
-
-    // return product;
   }
 
   private handleDbExceptions(error: any) {
@@ -152,5 +149,15 @@ export class ProductsService {
     throw new InternalServerErrorException(
       'Unexpected error, check server error',
     );
+  }
+
+  async deleteAllProducts() {
+    const query = this.productImageRepository.createQueryBuilder('product');
+
+    try {
+      return await query.delete().where({}).execute();
+    } catch (error) {
+      this.handleDbExceptions(error);
+    }
   }
 }
