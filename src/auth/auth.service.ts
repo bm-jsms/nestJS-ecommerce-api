@@ -11,12 +11,16 @@ import * as bcrypt from 'bcrypt';
 import { User } from './entities/user.entity';
 import { Repository } from 'typeorm';
 import { LoginUserDto, CreateUserDto } from './dto';
+import { JwtPayload } from './interfaces/jwt-payload.interface';
+import { JwtService } from '@nestjs/jwt';
 
 @Injectable()
 export class AuthService {
   constructor(
     @InjectRepository(User)
     private readonly userRepository: Repository<User>,
+
+    private readonly jwtService: JwtService,
   ) {}
 
   async create(createUserDto: CreateUserDto) {
@@ -31,7 +35,7 @@ export class AuthService {
       await this.userRepository.save(user);
       // delete user.password;
 
-      return user;
+      return { ...user, token: this.getJwtToken({ email: user.email }) };
     } catch (error) {
       this.handleDBeErrorS(error);
     }
@@ -47,21 +51,15 @@ export class AuthService {
 
     if (!user) throw new UnauthorizedException('Invalid credentials');
 
-    if (bcrypt.compareSync(password, user.password))
+    if (!bcrypt.compareSync(password, user.password))
       throw new UnauthorizedException('Invalid credentials');
 
-    /*     if (!user) {
-      throw new BadRequestException('Invalid credentials');
-    }
+    return { ...user, token: this.getJwtToken({ email: user.email }) };
+  }
 
-    const isMatch = await bcrypt.compare(password, user.password);
-
-    if (!isMatch) {
-      throw new BadRequestException('Invalid credentials');
-    }
-
-    delete user.password; */
-    return user;
+  private getJwtToken(payload: JwtPayload) {
+    const token = this.jwtService.sign(payload);
+    return token;
   }
 
   private handleDBeErrorS(error: any) {
