@@ -1,3 +1,4 @@
+import { META_ROLES } from './../decorators/role-protected.decorator';
 import {
   BadRequestException,
   CanActivate,
@@ -16,8 +17,8 @@ export class UserRoleGuard implements CanActivate {
   canActivate(
     context: ExecutionContext,
   ): boolean | Promise<boolean> | Observable<boolean> {
-    const validRoles: string[] = this.reflector.get<string[]>(
-      'roles',
+    const validRoles: string[] = this.reflector.get(
+      META_ROLES,
       context.getHandler(),
     );
 
